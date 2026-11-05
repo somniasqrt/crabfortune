@@ -1,5 +1,10 @@
+//! crabfortune - fortune(6), rewritten in Rust 🦀
+//!
+//! Usage -> crabfortune [-s] [-l] [-n N] [-c] [-e] [--crab] [file|dir ...]
+
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const CRAB_FORTUNES: &str = include_str!("crab.txt");
@@ -11,9 +16,54 @@ const DEFAULT_DIRS: &[&str] = &[
     "/usr/share/fortune",
 ];
 
+struct Opts {
+    short: bool,
+    long: bool,
+    len: usize,
+    show_source: bool,
+    equal: bool,
+    crab_only: bool,
+    paths: Vec<PathBuf>,
+}
+
 struct Source {
     name: String,
     fortunes: Vec<String>,
+}
+
+fn usage() -> ! {
+    eprintln!("usage: crabfortune [-s] [-l] [-n N] [-c] [-e] [--crab] [file|dir ...]");
+    std::process::exit(2);
+}
+
+fn parse_args() -> Opts {
+    let mut o = Opts {
+        short: false,
+        long: false,
+        len: 160,
+        show_source: false,
+        equal: false,
+        crab_only: false,
+        paths: Vec::new(),
+    };
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        match a.as_str() {
+            "-s" => o.short = true,
+            "-l" => o.long = true,
+            "-n" => o.len = args.next().and_then(|n| n.parse().ok()).unwrap_or_else(|| usage()),
+            "-c" => o.show_source = true,
+            "-e" => o.equal = true,
+            "--crab" => o.crab_only = true,
+            "-h" | "--help" => usage(),
+            _ if a.starts_with('-') => usage(),
+            _ => o.paths.push(PathBuf::from(a)),
+        }
+    }
+    if o.short && o.long {
+        usage();
+    }
+    o
 }
 
 /// splitmix64, seeded from the clock and the pid. Good enough for wisdom.
@@ -84,29 +134,65 @@ fn load(path: &Path, into: &mut Vec<Source>) {
     }
 }
 
-fn main() {
-    let crab_only = std::env::args().any(|a| a == "--crab");
+fn main() -> ExitCode {
+    let o = parse_args();
+
     let mut sources = vec![Source {
         name: "crab".into(),
         fortunes: parse(CRAB_FORTUNES),
     }];
-    if !crab_only {
-        if let Some(dir) = DEFAULT_DIRS.iter().map(Path::new).find(|d| d.is_dir()) {
-            load(dir, &mut sources);
+    if !o.crab_only {
+        if o.paths.is_empty() {
+            if let Some(dir) = DEFAULT_DIRS.iter().map(Path::new).find(|d| d.is_dir()) {
+                load(dir, &mut sources);
+            }
+        } else {
+            sources.clear();
+            for p in &o.paths {
+                load(p, &mut sources);
+            }
         }
     }
+
+    // length filter
+    for s in &mut sources {
+        s.fortunes.retain(|f| {
+            let n = f.chars().count();
+            (!o.short || n <= o.len) && (!o.long || n > o.len)
+        });
+    }
+    sources.retain(|s| !s.fortunes.is_empty());
     if sources.is_empty() {
-        eprintln!("no fortunes found");
-        std::process::exit(1);
+        eprintln!("crabfortune: no fortunes found. the crab has nothing to say.");
+        return ExitCode::FAILURE;
     }
+
     let mut rng = Rng::new();
-    let total: usize = sources.iter().map(|s| s.fortunes.len()).sum();
-    let mut i = rng.below(total);
-    for s in &sources {
-        if i < s.fortunes.len() {
-            print!("{}", s.fortunes[i]);
-            return;
-        }
-        i -= s.fortunes.len();
+    let (src, fortune) = if o.equal {
+        // every file equally likely, like `fortune -e`
+        let s = &sources[rng.below(sources.len())];
+        (s, &s.fortunes[rng.below(s.fortunes.len())])
+    } else {
+        // every fortune equally likely
+        let total: usize = sources.iter().map(|s| s.fortunes.len()).sum();
+        let mut i = rng.below(total);
+        let s = sources
+            .iter()
+            .find(|s| {
+                if i < s.fortunes.len() {
+                    true
+                } else {
+                    i -= s.fortunes.len();
+                    false
+                }
+            })
+            .expect("index is within total");
+        (s, &s.fortunes[i])
+    };
+
+    if o.show_source {
+        println!("({})\n%", src.name);
     }
+    print!("{fortune}");
+    ExitCode::SUCCESS
 }
