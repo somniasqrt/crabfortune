@@ -1,0 +1,50 @@
+Have you tried rewriting it in Rust?
+%
+It compiles. Ship it.
+%
+There are only two hard things in computer science:
+cache invalidation, naming things, and lifetimes 'a.
+%
+The borrow checker is not your enemy.
+It is your very strict friend who is always right.
+%
+error[E0499]: cannot borrow `happiness` as mutable more than once at a time
+%
+Fearless concurrency: now you can be afraid of compile times instead.
+%
+cargo build --release
+The only time you are allowed to make coffee.
+%
+Option<Wisdom> = None
+%
+Blazingly fast. Compiled slowly.
+%
+If it compiles, it works.
+If it doesn't compile, it's your fault.
+%
+Perl is write-only. Rust is compile-only.
+%
+There is no cow level.
+%
+panic!("at the disco")
+%
+A segfault a day keeps the crab away.
+%
+unsafe { life() }
+%
+Your code is fine. It's the lifetimes that are wrong.
+%
+The crab does not walk backwards. It walks sideways, which is a different thing entirely.
+%
+Today's lucky number: 0x9E3779B97F4A7C15
+%
+You will rewrite something in Rust soon.
+It will not be faster, but it will be in Rust.
+%
+Somewhere, a C programmer is reading this and sighing.
+%
+Clippy has 37 suggestions for your life. You will ignore all of them.
+%
+.unwrap() is a promise. Keep your promises.
+%
+Zero-cost abstractions. Infinite-cost compile times.

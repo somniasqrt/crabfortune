@@ -2,6 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const CRAB_FORTUNES: &str = include_str!("crab.txt");
+
 const DEFAULT_DIRS: &[&str] = &[
     "/opt/homebrew/share/games/fortunes",
     "/usr/local/share/games/fortunes",
@@ -83,9 +85,15 @@ fn load(path: &Path, into: &mut Vec<Source>) {
 }
 
 fn main() {
-    let mut sources = Vec::new();
-    if let Some(dir) = DEFAULT_DIRS.iter().map(Path::new).find(|d| d.is_dir()) {
-        load(dir, &mut sources);
+    let crab_only = std::env::args().any(|a| a == "--crab");
+    let mut sources = vec![Source {
+        name: "crab".into(),
+        fortunes: parse(CRAB_FORTUNES),
+    }];
+    if !crab_only {
+        if let Some(dir) = DEFAULT_DIRS.iter().map(Path::new).find(|d| d.is_dir()) {
+            load(dir, &mut sources);
+        }
     }
     if sources.is_empty() {
         eprintln!("no fortunes found");
