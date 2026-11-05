@@ -3,6 +3,7 @@
 //! Usage -> crabfortune [-s] [-l] [-n N] [-c] [-e] [--crab] [file|dir ...]
 
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -190,9 +191,20 @@ fn main() -> ExitCode {
         (s, &s.fortunes[i])
     };
 
-    if o.show_source {
-        println!("({})\n%", src.name);
+    let mut out = io::stdout().lock();
+    let res = (|| {
+        if o.show_source {
+            writeln!(out, "({})\n%", src.name)?;
+        }
+        out.write_all(fortune.as_bytes())?;
+        out.flush()
+    })();
+    match res {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) if e.kind() == io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("crabfortune: {e}");
+            ExitCode::FAILURE
+        }
     }
-    print!("{fortune}");
-    ExitCode::SUCCESS
 }
